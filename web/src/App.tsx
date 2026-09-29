@@ -1,31 +1,41 @@
 import { useState, useCallback } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { VideoWithScore, SearchResponse, TimeRange } from 'shared';
-import { searchVideos, exportVideos } from './lib/api';
+import { searchVideos, exportVideos, getSearchHistory } from './lib/api';
 import { SearchBar } from './components/SearchBar';
 import { VideoCard } from './components/VideoCard';
 import { VideoDetail } from './components/VideoDetail';
 import { KeywordSuggestions } from './components/KeywordSuggestions';
 import { QuotaIndicator } from './components/QuotaIndicator';
+import { CollectionsView } from './components/CollectionsView';
 
 export default function App() {
+  const queryClient = useQueryClient();
   const [selectedVideo, setSelectedVideo] = useState<VideoWithScore | null>(null);
   const [searchResult, setSearchResult] = useState<SearchResponse | null>(null);
   const [currentKeyword, setCurrentKeyword] = useState('');
+  const [isCollectionsOpen, setIsCollectionsOpen] = useState(false);
+
+  // Search history query
+  const { data: searchHistory = [] } = useQuery({
+    queryKey: ['search-history'],
+    queryFn: getSearchHistory,
+  });
 
   const searchMutation = useMutation({
-    mutationFn: (params: { keyword: string; timeRange: TimeRange; language: string; maxDuration: number }) =>
+    mutationFn: (params: { keyword: string; timeRange: TimeRange; language: string; maxDuration: number; minViews?: number }) =>
       searchVideos(params),
     onSuccess: (data) => {
       setSearchResult(data);
       setSelectedVideo(null);
+      queryClient.invalidateQueries({ queryKey: ['search-history'] });
     },
   });
 
   const handleSearch = useCallback(
-    (keyword: string, timeRange: TimeRange, language: string, maxDuration: number) => {
+    (keyword: string, timeRange: TimeRange, language: string, maxDuration: number, minViews: number) => {
       setCurrentKeyword(keyword);
-      searchMutation.mutate({ keyword, timeRange, language, maxDuration });
+      searchMutation.mutate({ keyword, timeRange, language, maxDuration, minViews });
     },
     [searchMutation],
   );
@@ -33,7 +43,7 @@ export default function App() {
   const handleKeywordClick = useCallback(
     (keyword: string) => {
       setCurrentKeyword(keyword);
-      searchMutation.mutate({ keyword, timeRange: '7d', language: 'any', maxDuration: 60 });
+      searchMutation.mutate({ keyword, timeRange: '7d', language: 'any', maxDuration: 60, minViews: 5000 });
     },
     [searchMutation],
   );
@@ -72,8 +82,23 @@ export default function App() {
             <span style={{ fontWeight: 500, color: 'var(--text-secondary)', marginLeft: '6px' }}>Research</span>
           </h1>
         </div>
-        <QuotaIndicator />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <button
+            className="btn btn-secondary"
+            style={{ fontSize: '0.813rem', padding: '6px 14px', display: 'flex', alignItems: 'center', gap: '6px' }}
+            onClick={() => setIsCollectionsOpen(true)}
+          >
+            📁 Koleksi Saya
+          </button>
+          <QuotaIndicator />
+        </div>
       </header>
+
+      {/* Collections Modal */}
+      <CollectionsView
+        isOpen={isCollectionsOpen}
+        onClose={() => setIsCollectionsOpen(false)}
+      />
 
       {/* Warning banner */}
       <div style={{ padding: '8px 24px', background: 'var(--bg-primary)' }}>
@@ -87,6 +112,42 @@ export default function App() {
         {/* Search */}
         <div style={{ marginBottom: '20px' }}>
           <SearchBar onSearch={handleSearch} isLoading={searchMutation.isPending} />
+
+          {/* Research History Badges */}
+          {searchHistory.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '10px' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                🕒 Riwayat Riset:
+              </span>
+              {searchHistory.map((h) => (
+                <button
+                  key={h.keyword}
+                  onClick={() => handleKeywordClick(h.keyword)}
+                  className="btn"
+                  style={{
+                    fontSize: '0.75rem',
+                    padding: '3px 10px',
+                    borderRadius: '12px',
+                    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                    border: '1px solid var(--border-color)',
+                    color: 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = '#60a5fa';
+                    e.currentTarget.style.borderColor = '#3b82f6';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = 'var(--text-secondary)';
+                    e.currentTarget.style.borderColor = 'var(--border-color)';
+                  }}
+                >
+                  {h.keyword} <span style={{ opacity: 0.5, fontSize: '0.7rem' }}>({h.resultCount})</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Error state */}

@@ -14,6 +14,7 @@ import { extractKeywordSuggestions } from '../services/keyword-suggest.js';
 import {
   getCachedSearch,
   saveSearch,
+  getRecentSearches,
   upsertVideo,
   upsertChannel,
   getVideosByIds,
@@ -21,6 +22,15 @@ import {
 } from '../db/queries.js';
 
 export const searchRouter = Router();
+
+/**
+ * GET /api/search/history
+ * Get recent search keywords and metadata.
+ */
+searchRouter.get('/history', (_req, res) => {
+  const history = getRecentSearches(10);
+  res.json(history);
+});
 
 /**
  * POST /api/search
@@ -35,7 +45,7 @@ searchRouter.post('/', async (req, res, next) => {
       );
     }
 
-    const { keyword, timeRange, language, maxDuration } = parsed.data;
+    const { keyword, timeRange, language, maxDuration, minViews } = parsed.data;
     const ttl = config.cache.ttlHours;
 
     // 1. Check cache
@@ -45,7 +55,10 @@ searchRouter.post('/', async (req, res, next) => {
 
     if (cached && cached.videoIds.length > 0) {
       logger.info('Search cache hit', { keyword, timeRange });
-      videos = getVideosByIds(cached.videoIds);
+      const cachedVideos = getVideosByIds(cached.videoIds);
+      videos = cachedVideos.filter(
+        (v) => v.duration <= maxDuration && v.isShort && v.viewCount >= minViews
+      );
       cachedAt = new Date().toISOString(); // indicate it was from cache
     } else {
       // 2. Search YouTube
@@ -67,9 +80,9 @@ searchRouter.post('/', async (req, res, next) => {
       // 3. Get video details (batch, 1 unit per call)
       const videoDetails = await getVideoDetails(videoIds);
 
-      // Filter by maxDuration and isShort
+      // Filter by maxDuration, isShort, and minViews
       videos = videoDetails.filter(
-        (v) => v.duration <= maxDuration && v.isShort
+        (v) => v.duration <= maxDuration && v.isShort && v.viewCount >= minViews
       );
 
       // 4. Get channel details for subscriber counts (batch)

@@ -6,8 +6,6 @@ Aturan untuk AI coding agent (dan kontributor) di proyek **Viral Shorts Research
 
 Tool **pribadi (single-user)** untuk riset YouTube Shorts viral berdasarkan keyword: skor viralitas, ringkasan hook dan struktur, saran keyword, saran judul/caption, dan pencocokan dengan campaign Whop Content Rewards.
 
-Output tool adalah **referensi riset**, bukan bahan untuk repost.
-
 ## 2. Aturan Keras (tidak boleh dilanggar)
 
 1. **Dilarang membuat fitur mengunduh, menyalin, atau mengekstrak file video/audio** dari YouTube atau platform lain. Tidak ada `yt-dlp`, scraper stream, atau sejenisnya.

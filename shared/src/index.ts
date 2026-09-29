@@ -138,9 +138,10 @@ export const searchRequestSchema = z.object({
   timeRange: timeRangeSchema.default('7d'),
   language: z.string().default('any'),
   maxDuration: z.number().int().min(1).max(180).default(180),
+  minViews: z.number().int().nonnegative().default(0),
 });
 
-export type SearchRequest = z.infer<typeof searchRequestSchema>;
+export type SearchRequest = z.input<typeof searchRequestSchema>;
 
 export const searchResponseSchema = z.object({
   keyword: z.string(),

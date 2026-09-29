@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import type { TimeRange } from 'shared';
 
 interface SearchBarProps {
-  onSearch: (keyword: string, timeRange: TimeRange, language: string, maxDuration: number) => void;
+  onSearch: (keyword: string, timeRange: TimeRange, language: string, maxDuration: number, minViews: number) => void;
   isLoading: boolean;
 }
 
@@ -11,11 +11,12 @@ export function SearchBar({ onSearch, isLoading }: SearchBarProps) {
   const [timeRange, setTimeRange] = useState<TimeRange>('7d');
   const [language, setLanguage] = useState('any');
   const [maxDuration, setMaxDuration] = useState(60);
+  const [minViews, setMinViews] = useState(5000);
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (keyword.trim()) {
-      onSearch(keyword.trim(), timeRange, language, maxDuration);
+      onSearch(keyword.trim(), timeRange, language, maxDuration, minViews);
     }
   }
 
@@ -58,7 +59,7 @@ export function SearchBar({ onSearch, isLoading }: SearchBarProps) {
         </div>
 
         {/* Filters */}
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <label htmlFor="filter-time" style={{ fontSize: '0.813rem', color: 'var(--text-secondary)' }}>
               Rentang waktu
@@ -72,6 +73,26 @@ export function SearchBar({ onSearch, isLoading }: SearchBarProps) {
               <option value="24h">24 jam terakhir</option>
               <option value="7d">7 hari terakhir</option>
               <option value="30d">30 hari terakhir</option>
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <label htmlFor="filter-views" style={{ fontSize: '0.813rem', color: 'var(--text-secondary)' }}>
+              Min. Penonton
+            </label>
+            <select
+              id="filter-views"
+              className="select"
+              value={minViews}
+              onChange={(e) => setMinViews(Number(e.target.value))}
+            >
+              <option value={0}>Semua Views</option>
+              <option value={5000}>≥ 5.000 (5K)</option>
+              <option value={10000}>≥ 10.000 (10K)</option>
+              <option value={50000}>≥ 50.000 (50K)</option>
+              <option value={100000}>≥ 100.000 (100K)</option>
+              <option value={500000}>≥ 500.000 (500K)</option>
+              <option value={1000000}>≥ 1.000.000 (1M)</option>
             </select>
           </div>
 

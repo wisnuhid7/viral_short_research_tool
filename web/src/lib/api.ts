@@ -36,6 +36,17 @@ export async function searchVideos(request: SearchRequest): Promise<SearchRespon
   });
 }
 
+export async function getSearchHistory(): Promise<{
+  keyword: string;
+  timeRange: string;
+  language: string;
+  maxDuration: number;
+  resultCount: number;
+  searchedAt: string;
+}[]> {
+  return apiFetch('/search/history');
+}
+
 export async function getSummary(videoId: string): Promise<Summary> {
   return apiFetch<Summary>('/summaries', {
     method: 'POST',
@@ -67,6 +78,33 @@ export async function addToCollection(
   await apiFetch(`/collections/${collectionId}/items`, {
     method: 'POST',
     body: JSON.stringify({ videoId, tags, notes }),
+  });
+}
+
+export async function getCollectionItems(collectionId: number): Promise<{
+  id: number;
+  collection_id: number;
+  video_id: string;
+  tags: string;
+  notes: string;
+  added_at: string;
+  video_title: string;
+  thumbnail_url: string;
+  view_count: number;
+  channel_title: string;
+}[]> {
+  return apiFetch(`/collections/${collectionId}/items`);
+}
+
+export async function removeFromCollection(collectionId: number, videoId: string): Promise<void> {
+  await apiFetch(`/collections/${collectionId}/items/${videoId}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function deleteCollection(collectionId: number): Promise<void> {
+  await apiFetch(`/collections/${collectionId}`, {
+    method: 'DELETE',
   });
 }
 

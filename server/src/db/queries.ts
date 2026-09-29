@@ -143,6 +143,33 @@ export function saveSearch(keyword: string, timeRange: string, language: string,
   })();
 }
 
+export function getRecentSearches(limit = 10): {
+  keyword: string;
+  timeRange: string;
+  language: string;
+  maxDuration: number;
+  resultCount: number;
+  searchedAt: string;
+}[] {
+  const db = getDb();
+  const rows = db.prepare(`
+    SELECT keyword, time_range as timeRange, language, max_duration as maxDuration, result_count as resultCount, MAX(searched_at) as searchedAt
+    FROM keyword_searches
+    GROUP BY keyword
+    ORDER BY searchedAt DESC
+    LIMIT ?
+  `).all(limit) as Record<string, unknown>[];
+
+  return rows.map((r) => ({
+    keyword: r['keyword'] as string,
+    timeRange: r['timeRange'] as string,
+    language: r['language'] as string,
+    maxDuration: r['maxDuration'] as number,
+    resultCount: r['resultCount'] as number,
+    searchedAt: r['searchedAt'] as string,
+  }));
+}
+
 // ─── Summaries ───────────────────────────────────────────
 
 export function getSummary(videoId: string, promptVersion: string): Summary | undefined {
