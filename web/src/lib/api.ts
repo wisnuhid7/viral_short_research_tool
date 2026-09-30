@@ -4,6 +4,10 @@ import type {
   Summary,
   QuotaStatus,
   ApiError,
+  CampaignWithRating,
+  CreateCampaignRequest,
+  WhopSyncResponse,
+  WhopSyncStatus,
 } from 'shared';
 
 const BASE = '/api';
@@ -118,3 +122,38 @@ export async function exportVideos(
     body: JSON.stringify({ videoIds, format, includeSummaries }),
   });
 }
+
+// ─── Campaigns API ───────────────────────────────────────
+
+export async function getCampaigns(category: string = 'all'): Promise<CampaignWithRating[]> {
+  const url = category && category !== 'all' ? `/campaigns?category=${category}` : '/campaigns';
+  return apiFetch(url);
+}
+
+export async function matchCampaigns(keyword: string): Promise<CampaignWithRating[]> {
+  return apiFetch(`/campaigns/match?keyword=${encodeURIComponent(keyword)}`);
+}
+
+export async function createCampaign(data: CreateCampaignRequest): Promise<CampaignWithRating> {
+  return apiFetch('/campaigns', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteCampaign(id: string): Promise<void> {
+  await apiFetch(`/campaigns/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function syncWhopCampaigns(): Promise<WhopSyncResponse> {
+  return apiFetch('/campaigns/sync', {
+    method: 'POST',
+  });
+}
+
+export async function getWhopSyncStatus(): Promise<WhopSyncStatus> {
+  return apiFetch('/campaigns/sync-status');
+}
+

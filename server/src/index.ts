@@ -10,6 +10,8 @@ import { summariesRouter } from './routes/summaries.js';
 import { collectionsRouter } from './routes/collections.js';
 import { exportRouter } from './routes/export.js';
 import { quotaRouter } from './routes/quota.js';
+import { campaignsRouter } from './routes/campaigns.js';
+import { startPeriodicWhopSync } from './services/whop/whop-sync.js';
 
 const app = express();
 
@@ -35,6 +37,7 @@ app.use('/api/summaries', summariesRouter);
 app.use('/api/collections', collectionsRouter);
 app.use('/api/export', exportRouter);
 app.use('/api/quota', quotaRouter);
+app.use('/api/campaigns', campaignsRouter);
 
 // ─── Error Handler ───────────────────────────────────────
 
@@ -58,6 +61,9 @@ function start(): void {
 
   // Set quota limit from config
   setQuotaLimit(config.youtube.dailyQuotaLimit);
+
+  // Periodic and startup sync from Whop MCP
+  startPeriodicWhopSync();
 
   app.listen(config.port, () => {
     logger.info(`Server running on http://localhost:${config.port}`, {

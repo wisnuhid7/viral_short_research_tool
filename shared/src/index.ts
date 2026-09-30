@@ -205,3 +205,119 @@ export const exportRequestSchema = z.object({
 });
 
 export type ExportRequest = z.infer<typeof exportRequestSchema>;
+
+// ─── Campaign & Opportunity Rating ───────────────────────
+
+export const campaignCategorySchema = z.enum([
+  'all',
+  'ai_tech',
+  'finance_crypto',
+  'gaming',
+  'business_sidehustle',
+  'fitness_lifestyle',
+  'entertainment',
+  'other',
+]);
+
+export type CampaignCategory = z.infer<typeof campaignCategorySchema>;
+
+export const campaignSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1),
+  creatorOrBrand: z.string().min(1),
+  category: campaignCategorySchema.default('other'),
+  url: z.string().default(''),
+  ratePerKViews: z.number().positive(), // in USD per 1K views
+  totalBudget: z.number().positive(),
+  remainingBudget: z.number().nonnegative(),
+  deadline: z.string().nullable().optional(),
+  requiredHashtags: z.array(z.string()).default([]),
+  requiredMentions: z.array(z.string()).default([]),
+  allowedPlatforms: z.array(z.string()).default(['YouTube Shorts']),
+  targetKeywords: z.array(z.string()).default([]),
+  notes: z.string().default(''),
+  spotsRemaining: z.number().nullable().optional(),
+  isWhopLive: z.boolean().default(false),
+  whopGoalType: z.string().nullable().optional(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+export type Campaign = z.infer<typeof campaignSchema>;
+
+export const whopSyncStatusSchema = z.object({
+  lastSyncedAt: z.string().nullable(),
+  campaignsCount: z.number(),
+  status: z.enum(['idle', 'syncing', 'success', 'error']),
+  errorMessage: z.string().nullable().optional(),
+});
+
+export type WhopSyncStatus = z.infer<typeof whopSyncStatusSchema>;
+
+export const whopSyncResponseSchema = z.object({
+  success: z.boolean(),
+  count: z.number(),
+  syncedAt: z.string(),
+  message: z.string(),
+});
+
+export type WhopSyncResponse = z.infer<typeof whopSyncResponseSchema>;
+
+export const createCampaignRequestSchema = z.object({
+  name: z.string().min(1),
+  creatorOrBrand: z.string().min(1),
+  category: campaignCategorySchema.default('other'),
+  url: z.string().default(''),
+  ratePerKViews: z.number().positive(),
+  totalBudget: z.number().positive(),
+  remainingBudget: z.number().nonnegative(),
+  deadline: z.string().nullable().optional(),
+  requiredHashtags: z.array(z.string()).default([]),
+  requiredMentions: z.array(z.string()).default([]),
+  allowedPlatforms: z.array(z.string()).default(['YouTube Shorts']),
+  targetKeywords: z.array(z.string()).default([]),
+  notes: z.string().default(''),
+});
+
+export type CreateCampaignRequest = z.infer<typeof createCampaignRequestSchema>;
+
+export const campaignRatingSchema = z.object({
+  campaignId: z.string(),
+  tier: z.enum(['S', 'A', 'B', 'C']),
+  opportunityScore: z.number().min(0).max(100),
+  earningScore: z.number().min(0).max(100),
+  demandScore: z.number().min(0).max(100),
+  budgetScore: z.number().min(0).max(100),
+  projectedEarnings: z.object({
+    views10k: z.number(),
+    views50k: z.number(),
+    views100k: z.number(),
+    views500k: z.number(),
+  }),
+  budgetHealth: z.enum(['safe', 'moderate', 'low']),
+  verdict: z.string(),
+  // ─── Target Feasibility & Ease Metrics ───
+  targetEaseLevel: z.enum(['very_easy', 'easy', 'moderate', 'hard']),
+  targetEaseScore: z.number().min(0).max(100),
+  viewsNeededForTarget: z.object({
+    for25USD: z.number(),
+    for50USD: z.number(),
+    for100USD: z.number(),
+  }),
+  nicheVirality: z.object({
+    score: z.number(),
+    label: z.string(),
+    audienceSize: z.string(),
+  }),
+  budgetSafetyPockets: z.number(),
+  easeExplanation: z.string(),
+  strategyTips: z.array(z.string()),
+});
+
+export type CampaignRating = z.infer<typeof campaignRatingSchema>;
+
+export const campaignWithRatingSchema = campaignSchema.extend({
+  rating: campaignRatingSchema,
+});
+
+export type CampaignWithRating = z.infer<typeof campaignWithRatingSchema>;

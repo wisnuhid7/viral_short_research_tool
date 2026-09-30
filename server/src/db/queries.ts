@@ -1,5 +1,5 @@
 import { getDb } from './schema.js';
-import type { Video, Channel, Summary, KeywordSuggestion } from 'shared';
+import type { Video, Channel, Summary, KeywordSuggestion, Campaign } from 'shared';
 
 // ─── Videos ──────────────────────────────────────────────
 
@@ -312,4 +312,158 @@ export function removeFromCollection(collectionId: number, videoId: string): voi
 export function deleteCollection(collectionId: number): void {
   const db = getDb();
   db.prepare('DELETE FROM collections WHERE id = ?').run(collectionId);
+}
+
+// ─── Campaigns ───────────────────────────────────────────
+
+export function getCampaigns(category?: string): Campaign[] {
+  const db = getDb();
+  let query = 'SELECT * FROM campaigns';
+  const params: unknown[] = [];
+
+  if (category && category !== 'all') {
+    query += ' WHERE category = ?';
+    params.push(category);
+  }
+
+  query += ' ORDER BY rate_per_k_views DESC';
+  const rows = db.prepare(query).all(...params) as Record<string, unknown>[];
+
+  return rows.map(rowToCampaign);
+}
+
+export function getCampaignById(id: string): Campaign | undefined {
+  const db = getDb();
+  const row = db.prepare('SELECT * FROM campaigns WHERE id = ?').get(id) as Record<string, unknown> | undefined;
+  if (!row) return undefined;
+  return rowToCampaign(row);
+}
+
+export function upsertCampaign(campaign: Campaign): void {
+  const db = getDb();
+  db.prepare(`
+    INSERT INTO campaigns (
+      id, name, creator_or_brand, category, url, rate_per_k_views, total_budget,
+      remaining_budget, deadline, required_hashtags, required_mentions,
+      allowed_platforms, target_keywords, notes, spots_remaining, is_whop_live,
+      whop_goal_type, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      name = excluded.name,
+      creator_or_brand = excluded.creator_or_brand,
+      category = excluded.category,
+      url = excluded.url,
+      rate_per_k_views = excluded.rate_per_k_views,
+      total_budget = excluded.total_budget,
+      remaining_budget = excluded.remaining_budget,
+      deadline = excluded.deadline,
+      required_hashtags = excluded.required_hashtags,
+      required_mentions = excluded.required_mentions,
+      allowed_platforms = excluded.allowed_platforms,
+      target_keywords = excluded.target_keywords,
+      notes = excluded.notes,
+      spots_remaining = excluded.spots_remaining,
+      is_whop_live = excluded.is_whop_live,
+      whop_goal_type = excluded.whop_goal_type,
+      updated_at = excluded.updated_at
+  `).run(
+    campaign.id,
+    campaign.name,
+    campaign.creatorOrBrand,
+    campaign.category,
+    campaign.url ?? '',
+    campaign.ratePerKViews,
+    campaign.totalBudget,
+    campaign.remainingBudget,
+    campaign.deadline ?? null,
+    JSON.stringify(campaign.requiredHashtags),
+    JSON.stringify(campaign.requiredMentions),
+    JSON.stringify(campaign.allowedPlatforms),
+    JSON.stringify(campaign.targetKeywords),
+    campaign.notes,
+    campaign.spotsRemaining ?? null,
+    campaign.isWhopLive ? 1 : 0,
+    campaign.whopGoalType ?? null,
+    campaign.createdAt,
+    campaign.updatedAt,
+  );
+}
+
+export function deleteCampaign(id: string): void {
+  const db = getDb();
+  db.prepare('DELETE FROM campaigns WHERE id = ?').run(id);
+}
+
+export function findCampaignsByKeyword(keyword: string): Campaign[] {
+  const db = getDb();
+  const term = `%${keyword.toLowerCase()}%`;
+  const rows = db.prepare(`
+    SELECT * FROM campaigns
+    WHERE lower(name) LIKE ? OR lower(target_keywords) LIKE ? OR lower(notes) LIKE ? OR lower(category) LIKE ?
+    ORDER BY rate_per_k_views DESC
+  `).all(term, term, term, term) as Record<string, unknown>[];
+
+  return rows.map(rowToCampaign);
+}
+
+function rowToCampaign(row: Record<string, unknown>): Campaign {
+  let categoryVal = row['category'] as string;
+  if (!['all', 'ai_tech', 'finance_crypto', 'gaming', 'business_sidehustle', 'fitness_lifestyle', 'entertainment', 'other'].includes(categoryVal)) {
+    categoryVal = 'other';
+  }
+
+  return {
+    id: row['id'] as string,
+    name: row['name'] as string,
+    creatorOrBrand: row['creator_or_brand'] as string,
+    category: categoryVal as any,
+    url: (row['url'] as string) ?? '',
+    ratePerKViews: row['rate_per_k_views'] as number,
+    totalBudget: row['total_budget'] as number,
+    remainingBudget: row['remaining_budget'] as number,
+    deadline: (row['deadline'] as string) ?? null,
+    requiredHashtags: JSON.parse((row['required_hashtags'] as string) || '[]') as string[],
+    requiredMentions: JSON.parse((row['required_mentions'] as string) || '[]') as string[],
+    allowedPlatforms: JSON.parse((row['allowed_platforms'] as string) || '["YouTube Shorts"]') as string[],
+    targetKeywords: JSON.parse((row['target_keywords'] as string) || '[]') as string[],
+    notes: (row['notes'] as string) ?? '',
+    spotsRemaining: row['spots_remaining'] !== undefined && row['spots_remaining'] !== null ? Number(row['spots_remaining']) : null,
+    isWhopLive: Boolean(row['is_whop_live']),
+    whopGoalType: (row['whop_goal_type'] as string) ?? null,
+    createdAt: row['created_at'] as string,
+    updatedAt: row['updated_at'] as string,
+  };
+}
+
+// ─── Whop Sync Logs ──────────────────────────────────────
+
+export function recordWhopSyncLog(syncedAt: string, campaignsCount: number, status: string, errorMessage?: string): void {
+  const db = getDb();
+  db.prepare(`
+    INSERT INTO whop_sync_logs (synced_at, campaigns_count, status, error_message)
+    VALUES (?, ?, ?, ?)
+  `).run(syncedAt, campaignsCount, status, errorMessage ?? null);
+}
+
+export function getLatestWhopSyncLog(): {
+  syncedAt: string;
+  campaignsCount: number;
+  status: string;
+  errorMessage: string | null;
+} | null {
+  const db = getDb();
+  const row = db.prepare(`
+    SELECT synced_at, campaigns_count, status, error_message
+    FROM whop_sync_logs
+    ORDER BY id DESC
+    LIMIT 1
+  `).get() as Record<string, unknown> | undefined;
+
+  if (!row) return null;
+  return {
+    syncedAt: row['synced_at'] as string,
+    campaignsCount: row['campaigns_count'] as number,
+    status: row['status'] as string,
+    errorMessage: (row['error_message'] as string) ?? null,
+  };
 }

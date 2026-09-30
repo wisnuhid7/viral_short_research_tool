@@ -1,13 +1,14 @@
 import { useState, useCallback } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { VideoWithScore, SearchResponse, TimeRange } from 'shared';
-import { searchVideos, exportVideos, getSearchHistory } from './lib/api';
+import { searchVideos, exportVideos, getSearchHistory, matchCampaigns } from './lib/api';
 import { SearchBar } from './components/SearchBar';
 import { VideoCard } from './components/VideoCard';
 import { VideoDetail } from './components/VideoDetail';
 import { KeywordSuggestions } from './components/KeywordSuggestions';
 import { QuotaIndicator } from './components/QuotaIndicator';
 import { CollectionsView } from './components/CollectionsView';
+import { CampaignRatingView } from './components/CampaignRatingView';
 
 export default function App() {
   const queryClient = useQueryClient();
@@ -15,11 +16,19 @@ export default function App() {
   const [searchResult, setSearchResult] = useState<SearchResponse | null>(null);
   const [currentKeyword, setCurrentKeyword] = useState('');
   const [isCollectionsOpen, setIsCollectionsOpen] = useState(false);
+  const [isCampaignViewOpen, setIsCampaignViewOpen] = useState(false);
 
   // Search history query
   const { data: searchHistory = [] } = useQuery({
     queryKey: ['search-history'],
     queryFn: getSearchHistory,
+  });
+
+  // Matched campaigns for current research keyword
+  const { data: matchedCampaigns = [] } = useQuery({
+    queryKey: ['matched-campaigns', currentKeyword],
+    queryFn: () => matchCampaigns(currentKeyword),
+    enabled: !!currentKeyword,
   });
 
   const searchMutation = useMutation({
@@ -82,13 +91,20 @@ export default function App() {
             <span style={{ fontWeight: 500, color: 'var(--text-secondary)', marginLeft: '6px' }}>Research</span>
           </h1>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <button
             className="btn btn-secondary"
             style={{ fontSize: '0.813rem', padding: '6px 14px', display: 'flex', alignItems: 'center', gap: '6px' }}
             onClick={() => setIsCollectionsOpen(true)}
           >
             📁 Koleksi Saya
+          </button>
+          <button
+            className="btn btn-primary"
+            style={{ fontSize: '0.813rem', padding: '6px 14px', display: 'flex', alignItems: 'center', gap: '6px' }}
+            onClick={() => setIsCampaignViewOpen(true)}
+          >
+            🏆 Rating Campaign
           </button>
           <QuotaIndicator />
         </div>
@@ -98,6 +114,16 @@ export default function App() {
       <CollectionsView
         isOpen={isCollectionsOpen}
         onClose={() => setIsCollectionsOpen(false)}
+      />
+
+      {/* Campaign Rating Modal */}
+      <CampaignRatingView
+        isOpen={isCampaignViewOpen}
+        onClose={() => setIsCampaignViewOpen(false)}
+        onSelectKeywordForResearch={(kw) => {
+          setIsCampaignViewOpen(false);
+          handleKeywordClick(kw);
+        }}
       />
 
       {/* Warning banner */}
@@ -164,6 +190,58 @@ export default function App() {
         {/* Results */}
         {searchResult && (
           <div className="animate-fade-in">
+            {/* Matched Campaign Opportunity Banner */}
+            {matchedCampaigns.length > 0 && (
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(16, 185, 129, 0.12) 100%)',
+                border: '1px solid rgba(245, 158, 11, 0.35)',
+                borderRadius: 'var(--radius-md)',
+                padding: '12px 18px',
+                marginBottom: '16px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '12px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span style={{ fontSize: '1.4rem' }}>💰</span>
+                  <div>
+                    <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      Niche ini cocok dengan {matchedCampaigns.length} Campaign Whop Rewards!
+                      <span style={{
+                        fontSize: '0.688rem',
+                        fontWeight: 700,
+                        padding: '2px 8px',
+                        borderRadius: '10px',
+                        background: 'rgba(245, 158, 11, 0.2)',
+                        color: '#fbbf24',
+                        border: '1px solid rgba(245, 158, 11, 0.4)',
+                      }}>
+                        Peluang Cuan
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                      Target: {matchedCampaigns.map(c => `${c.name} ($${c.ratePerKViews}/1k views)`).join(' · ')}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  className="btn btn-primary btn-sm"
+                  style={{
+                    whiteSpace: 'nowrap',
+                    background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                    borderColor: '#f59e0b',
+                    fontWeight: 600,
+                    boxShadow: '0 2px 8px rgba(245, 158, 11, 0.3)',
+                  }}
+                  onClick={() => setIsCampaignViewOpen(true)}
+                >
+                  Lihat Detail Rating →
+                </button>
+              </div>
+            )}
+
             {/* Results header */}
             <div style={{
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
