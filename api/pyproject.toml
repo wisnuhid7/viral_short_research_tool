@@ -1,0 +1,25 @@
+[project]
+name = "viral-shorts-api"
+version = "0.1.0"
+description = "Python/FastAPI port of the Viral Shorts Research Tool backend"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "pydantic>=2",
+    "pydantic-settings",
+    "httpx",
+    "openai",
+    "python-multipart",
+    "yt-dlp",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Repo root (parent of the `api` package) so `import api.app...` resolves.
+pythonpath = [".."]
